@@ -215,16 +215,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# from scipy.io.wavfile import write
-# import wave
-# import numpy as np
-# rec_path = "C:/Users/omer_/Desktop/recording/Itav/ספה/good/0_g1.wav"
-# spf = wave.open(rec_path, "r")
-# signal = spf.readframes(-1)
-# signal = np.frombuffer(signal, np.int16)
-# signal = signal[:int(len(signal) / 2)]
-# samplerate = 44100
-# write(rec_path, samplerate, signal.astype(np.int16))
-    # home_dir = "C:/Users/omer_/Desktop/recording"

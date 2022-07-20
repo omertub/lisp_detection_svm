@@ -1,4 +1,4 @@
-import os
+import sys, os, argparse
 from scipy.io.wavfile import read
 from python_speech_features import mfcc
 from sklearn.preprocessing import normalize
@@ -84,7 +84,7 @@ def get_files_for_word(word):
     return files
 
 
-def extract_data_for_word(word):
+def extract_data_for_word(word, test):
     X, y = np.array([]), np.array([])
 
     files = get_files_for_word(word)
@@ -100,7 +100,7 @@ def extract_data_for_word(word):
         label = 1 if files[i][-6] == 'g' else 0
 
         ## single_word mode
-        if SINGLE_WORD:
+        if test:
             X = features
             y = np.array(features.shape[0] * [label])
             y = y.reshape(-1,1)
@@ -117,27 +117,43 @@ def extract_data_for_word(word):
                 X = np.concatenate((X, features))
                 y = np.concatenate((y, features.shape[0] * [label]))
 
-    if SINGLE_WORD:
+    if test:
         return 0
     y = y.reshape(-1,1)
     final_array = np.concatenate((X,y),axis=1)
     return final_array
 
-SINGLE_WORD = 0
-def main():
-    WORDS = (
+WORDS = (
         "ספה",
-        # "פנס", 
-        # "קופסה", 
-        # "זחל",
-        # "רמז",
-        # "גזר",
+        "פנס", 
+        "קופסה", 
+        "זחל",
+        "רמז",
+        "גזר",
     )
-    for word in WORDS:
-        print(word)
-        word_data = extract_data_for_word(word)
-        if SINGLE_WORD == 0:
-            np.savetxt(f'./train/test_word.csv', word_data, delimiter=",")
+
+def main():
+    # argparse
+    parser = argparse.ArgumentParser(description='Preprocess wav files')
+    parser.add_argument('-w', '--word', help='Word num to visualize', type=int, required=True)
+    parser.add_argument('-ts', '--test', help='Generate test data')
+    parser.add_argument('-tr', '--train', help='Generate train data')
+
+    args = parser.parse_args()
+    word = WORDS[args.word]
+
+    if args.test:
+        pass
+    elif args.train:
+        pass
+    else:
+        print("Please use test (-ts=1) or train (-tr=1)")
+        exit(-1)
+
+    print(word)
+    word_data = extract_data_for_word(word, args.test)
+    if args.train == 0:
+        np.savetxt(f'./train/test_word.csv', word_data, delimiter=",")
 
 
 if __name__ == '__main__':
