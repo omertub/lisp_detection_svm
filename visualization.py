@@ -9,6 +9,8 @@ import numpy as np
 from scipy.signal import hilbert
 from scipy.ndimage import gaussian_filter1d
 import os
+import argparse
+from scipy.io.wavfile import write
 
 def remove_noise(signal):
     threshold_start = 0.07 * max(signal)
@@ -18,20 +20,15 @@ def remove_noise(signal):
         if abs(s) > threshold_start:
             break
     start_speech_idx = i
-    # signal = np.array([s if abs(s) > noise_threshold or index > i else 0 for index, s in enumerate(signal)])
 
     for i, s in enumerate(np.flip(signal)):
         if abs(s) > threshold_end:
             break
     end_speech_idx = len(signal) - i
-    # signal = np.array([s if index < end_speech_idx else 0 for index, s in enumerate(signal)])
-    # signal = np.array([s if abs(s) > noise_threshold or index < i else 0 for index, s in enumerate(signal)])
  
     start_speech_idx = max(0,start_speech_idx - 1000)
     end_speech_idx = min(len(signal), end_speech_idx + 1000)
-    # signal = signal[start_speech_idx:start_speech_idx+40000]
-    # signal = signal[start_speech_idx:i]
-    # signal = np.concatenate((signal[start_speech_idx:], np.zeros(start_speech_idx)))  # pad with zeros to 2 seconds
+
     return signal[start_speech_idx:end_speech_idx]
 
 
@@ -48,6 +45,16 @@ def generate_features(wav_file):
     mfcc_feat = mfcc(signal=samples_n, samplerate=frame_rate,
                      winlen=0.020, winstep=0.010, numcep=24, nfilt=40, nfft=1024, lowfreq=113, highfreq=6854)
     return mfcc_feat
+
+""" Cut functions:"""
+def find_cut1():
+    pass
+def find_cut2():
+    pass
+def find_cut3():
+    pass
+def find_cut4():
+    pass
 
 # ספה
 def find_cut0(signal_r):
@@ -78,21 +85,17 @@ def find_cut5(signal_r):
 
     return i-1500
 
-def plot_wav(file, counter):
+def plot_wav(file, counter, word_data, normalize):
     spf = wave.open(file, "r")
 
     # Extract Raw Audio from Wav File
     signal = spf.readframes(-1)
     signal = np.frombuffer(signal, np.int16)
-    # signal_res = remove_noise(signal)
-    # signal = normalize_samples(signal) #FIXME: enable once done
-    signal_r = remove_noise(signal)
-    # signal_r = signal
-    # signal_fft = np.fft.fft(signal)
-    # signal_fft = np.concatenate((signal_fft[int(len(signal_fft)/2):], signal_fft[:int(len(signal_fft)/2)]))
-    # signal_r_fft = np.fft.fft(signal_r)
-    # signal_r_fft = np.concatenate((signal_r_fft[int(len(signal_r_fft) / 2):], signal_r_fft[:int(len(signal_r_fft) / 2)]))
 
+    if normalize:
+        signal = normalize_samples(signal)
+    signal_r = remove_noise(signal)
+ 
     # If Stereo
     if spf.getnchannels() == 2:
         print("Just mono files")
@@ -106,7 +109,6 @@ def plot_wav(file, counter):
     plt.subplot(223)
     plt.title("Signal STFT")
     plt.specgram(signal, Fs=44100)
-    # plt.plot(signal_fft)
 
     plt.subplot(222)
     plt.title("Signal remove noise")
@@ -120,17 +122,14 @@ def plot_wav(file, counter):
     plt.subplot(224)
     plt.title("Signal with noise removal FFT")
     plt.specgram(signal_r)
-    # plt.plot(signal_r_fft)
     
     plt.show()
 
-    from scipy.io.wavfile import write
-    samplerate = 44100
     print(f"tst/e_{counter}.wav")
-    if BEFORE:
-        write(f"tst/e_{counter}.wav", samplerate, signal_r[:cut].astype(np.int16))
+    if word_data.before:
+        write(f"tst/e_{counter}.wav", SAMPLERATE, signal_r[:cut].astype(np.int16))
     else:
-        write(f"tst/e_{counter}.wav", samplerate, signal_r[cut:].astype(np.int16))
+        write(f"tst/e_{counter}.wav", SAMPLERATE, signal_r[cut:].astype(np.int16))
 
 
 def plot_mfcc(file):
@@ -143,33 +142,80 @@ def plot_mfcc(file):
 
     plt.show()
 
-def get_files_for_word(word):
-    home_dir = "C:/Users/omer_/Desktop/recording"
-
-    result = [os.path.join(dp, f) for dp, dn, filenames in os.walk(home_dir) for f in filenames if os.path.splitext(f)[1] == '.wav']
+def get_files_for_word(dir, word):
+    result = [os.path.join(dp, f) for dp, dn, filenames in os.walk(dir) for f in filenames if os.path.splitext(f)[1] == '.wav']
     files = [item.replace('\\','/') for item in result if word in item]
     return files
 
-WORDS = (
-    "ספה",
-    "פנס", 
-    "קופסה", 
-    "זחל",
-    "רמז",
-    "גזר",
-)
-BEFORE=1
+class word_data:
+    def __init__(self, word, before, cut_func):
+        self.word = word
+        self.before = before
+        self.cut_func = cut_func
+
+
+
+# creating WORDS       
+WORDS = [] 
+  
+# appending instances to WORDS 
+WORDS.append( word_data("ספה",   True,   find_cut0) )
+WORDS.append( word_data("פנס",   True,   find_cut1) )
+WORDS.append( word_data("קופסה", True,   find_cut2) )
+WORDS.append( word_data("זחל",   True,   find_cut3) )
+WORDS.append( word_data("רמז",   True,   find_cut4) )
+WORDS.append( word_data("גזר",   False,  find_cut5) )
+
+SAMPLERATE = 44100
+
+
+def dir_path(string):
+    if os.path.isdir(string):
+        return string
+    else:
+        print("Not a dir: ", string)
+        exit(-1)
+
+def wav_path(string):
+    if string[-3:] != '.wav':
+        return string
+    else:
+        print("Not a wav file: ", string)
+        exit(-1)
 
 def main():
+    # argparse
+    parser = argparse.ArgumentParser(description='Visualize wav files')
+    parser.add_argument('-w', '--word', help='Word num to visualize', type=int, required=True)
+    parser.add_argument('-m', '--mfcc', help='Visualize mfcc')
+    parser.add_argument('-n', '--normalize', help='Normalize signals')
+    parser.add_argument('-s', '--signal', help='Visualize signal')
+    parser.add_argument('-f', '--file', help='Path to wav file', type=wav_path)
+    parser.add_argument('-d', '--dir', help='Path to directory containing wav files', type=dir_path)
+
+    args = parser.parse_args()
+    word_data = WORDS[args.word]
+
     counter=0
-    for file in get_files_for_word(WORDS[0]):
+    if args.dir:
+        for file in get_files_for_word(args.dir, word_data.word):
+            print(file)
+            if args.signal:
+                plot_wav(file, counter, word_data, args.normalize)
+            if args.mfcc:
+                plot_mfcc(file)
+            counter += 1
+
+    elif args.file:
+        file = args.file
         print(file)
-        plot_wav(file, counter)
-        counter += 1
-    # file = "./גזר/bad/5_b0.wav"
-    # file = f'./{WORDS[0]}/bad/0_b0.wav'
-    # plot_wav(file, counter)
-    # plot_mfcc(file)
+        if args.signal:
+            plot_wav(file, counter, word_data, args.normalize)
+        if args.mfcc:
+            plot_mfcc(file)
+    else:
+        print("Please use dir (-d=*) or file (-f=*)")
+        exit(-1)
 
 if __name__ == '__main__':
     main()
@@ -185,3 +231,4 @@ if __name__ == '__main__':
 # signal = signal[:int(len(signal) / 2)]
 # samplerate = 44100
 # write(rec_path, samplerate, signal.astype(np.int16))
+    # home_dir = "C:/Users/omer_/Desktop/recording"
