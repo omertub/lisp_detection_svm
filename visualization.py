@@ -49,8 +49,29 @@ def find_cut2():
     pass
 def find_cut3():
     pass
-def find_cut4():
-    pass
+
+
+# זחל
+def find_cut4(signal_r):
+    envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
+    gradient = np.gradient(envelope)
+    max_val = np.max(envelope)
+    eps = 0.0001
+    # find max
+    for i in range(len(envelope)):
+        if (gradient[i] < eps) and (envelope[i] > 0.75 * max_val):
+            break
+    idx = i
+    # find end
+    for i in range(idx + 100, len(envelope)):
+        if (gradient[i] > -eps) and (envelope[i] < 0.3 * max_val):
+            break
+    for i in range(idx + 100, len(envelope)):
+        if (gradient[i] > -eps) and (envelope[i] < 0.3 * max_val):
+            break
+
+    return i - 500
+
 
 # ספה
 def find_cut0(signal_r):
