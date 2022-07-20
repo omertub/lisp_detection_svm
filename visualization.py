@@ -1,16 +1,12 @@
+import wave, sys, os, argparse
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import wave
-import sys
-from scipy.io.wavfile import read
 from python_speech_features import mfcc
 from sklearn.preprocessing import normalize
-import numpy as np
+from scipy.io.wavfile import read, write
 from scipy.signal import hilbert
 from scipy.ndimage import gaussian_filter1d
-import os
-import argparse
-from scipy.io.wavfile import write
 
 def remove_noise(signal):
     threshold_start = 0.07 * max(signal)
@@ -46,7 +42,7 @@ def generate_features(wav_file):
                      winlen=0.020, winstep=0.010, numcep=24, nfilt=40, nfft=1024, lowfreq=113, highfreq=6854)
     return mfcc_feat
 
-""" Cut functions:"""
+# Cut functions:
 def find_cut1():
     pass
 def find_cut2():
@@ -116,7 +112,7 @@ def plot_wav(file, counter, word_data, normalize):
     envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
     plt.plot(envelope, 'k')
     
-    cut = find_cut0(signal_r)
+    cut = word_data.cut_func(signal_r)
     plt.axvline(x=cut, color='r')
 
     plt.subplot(224)
