@@ -1,0 +1,5 @@
+files=$(find . | grep .wav | grep -v rec) 
+for d in $files ; do
+  rm rec1/$d
+  rm rec2/$d
+done

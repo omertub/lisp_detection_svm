@@ -1,0 +1,8 @@
+files=$(find . | grep .wav | grep -v rec)
+for d in $files ; do
+  if [[ $(($RANDOM % 5)) == 0 ]]; then
+    cp $d ./rec1/$d
+  else
+    cp $d ./rec2/$d
+  fi
+done
