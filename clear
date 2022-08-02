@@ -1,4 +1,4 @@
-files=$(find . | grep .wav | grep -v rec) 
+files=$(find . | grep .wav | grep -v rec | cut -c 3-) 
 for d in $files ; do
   rm rec1/$d
   rm rec2/$d

@@ -34,6 +34,13 @@ def normalize_samples(samples):
     samples = samples.reshape(-1)
     return samples
 
+# Cut functions:
+def find_cut1():
+    pass
+def find_cut2():
+    pass
+def find_cut4():
+    pass
 
 # ספה
 def find_cut0(signal_r):
@@ -52,6 +59,27 @@ def find_cut0(signal_r):
 
     return i-1000
 
+# זחל
+def find_cut3(signal_r):
+    envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
+    gradient = np.gradient(envelope)
+    max_val = np.max(envelope)
+    eps = 0.0001
+    # find max
+    for i in range(len(envelope)):
+        if (gradient[i] < eps) and (envelope[i] > 0.75 * max_val):
+            break
+    idx = i
+    # find end
+    for i in range(idx + 100, len(envelope)):
+        if (gradient[i] > -eps) and (envelope[i] < 0.3 * max_val):
+            break
+    for i in range(idx + 100, len(envelope)):
+        if (gradient[i] > -eps) and (envelope[i] < 0.3 * max_val):
+            break
+
+    return i - 500
+
 # גזר
 def find_cut5(signal_r):
     envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
@@ -65,29 +93,39 @@ def find_cut5(signal_r):
     return i-1500
 
 
-def generate_features(wav_file):
+def generate_features(wav_file, word_data):
     (frame_rate, samples) = read(wav_file)
     samples_clean = remove_noise(samples)
     samples_n = normalize_samples(samples_clean)
-    cut = find_cut0(samples_n)
-    samples_n = samples_n[cut:]
+    
+    cut = word_data.cut_func(samples_n)
+
+    if word_data.before:
+        samples_n = samples_n[:cut]
+    else:
+        samples_n = samples_n[cut:]
+
     mfcc_feat = mfcc(signal=samples_n, samplerate=frame_rate,
                      winlen=0.020, winstep=0.010, numcep=24, nfilt=40, nfft=1024, lowfreq=113, highfreq=6854)
+
     return mfcc_feat
 
 
-def get_files_for_word(word):
-    home_dir = "C:/Users/omer_/Desktop/recording_2/rec2"
+def get_files_for_word(word_data, test):
+    if test:
+        home_dir = "C:/Users/omer_/Desktop/recording_2/rec1"
+    else:
+        home_dir = "C:/Users/omer_/Desktop/recording_2/rec2"
 
     result = [os.path.join(dp, f) for dp, dn, filenames in os.walk(home_dir) for f in filenames if os.path.splitext(f)[1] == '.wav']
-    files = [item.replace('\\','/') for item in result if word in item]
+    files = [item.replace('\\','/') for item in result if word_data.word in item]
     return files
 
 
-def extract_data_for_word(word, test):
+def extract_data_for_word(word_data, test):
     X, y = np.array([]), np.array([])
 
-    files = get_files_for_word(word)
+    files = get_files_for_word(word_data, test)
 
     length = 5
     first = 1
@@ -95,7 +133,7 @@ def extract_data_for_word(word, test):
     for i in range(length):
         prec = (i/length) * 100
         print("%.2f" % prec, "%", end = '\r')
-        mfcc_feat = generate_features(files[i])
+        mfcc_feat = generate_features(files[i], word_data)
         features = mfcc_feat.reshape(-1, 24)
         label = 1 if files[i][-6] == 'g' else 0
 
@@ -104,8 +142,8 @@ def extract_data_for_word(word, test):
             X = features
             y = np.array(features.shape[0] * [label])
             y = y.reshape(-1,1)
-            word_data = np.concatenate((X,y),axis=1)
-            np.savetxt(f'test/t_{i}.csv', word_data, delimiter=",")
+            word_info = np.concatenate((X,y),axis=1)
+            np.savetxt(f'test/t_{i}.csv', word_info, delimiter=",")
 
         ## multi_word mode
         else:
@@ -123,37 +161,42 @@ def extract_data_for_word(word, test):
     final_array = np.concatenate((X,y),axis=1)
     return final_array
 
-WORDS = (
-        "ספה",
-        "פנס", 
-        "קופסה", 
-        "זחל",
-        "רמז",
-        "גזר",
-    )
+
+class word_data_t:
+    def __init__(self, word, before, cut_func):
+        self.word = word
+        self.before = before
+        self.cut_func = cut_func
+
+
+# creating WORDS       
+WORDS = [] 
+  
+# appending instances to WORDS 
+WORDS.append( word_data_t("ספה",   True,   find_cut0) )
+WORDS.append( word_data_t("פנס",   True,   find_cut1) )
+WORDS.append( word_data_t("קופסה", True,   find_cut2) )
+WORDS.append( word_data_t("זחל",   True,   find_cut3) )
+WORDS.append( word_data_t("רמז",   True,   find_cut4) )
+WORDS.append( word_data_t("גזר",   False,  find_cut5) )
 
 def main():
     # argparse
     parser = argparse.ArgumentParser(description='Preprocess wav files')
     parser.add_argument('-w', '--word', help='Word num to visualize', type=int, required=True)
     parser.add_argument('-ts', '--test', help='Generate test data')
-    parser.add_argument('-tr', '--train', help='Generate train data')
 
     args = parser.parse_args()
-    word = WORDS[args.word]
+    word_data = WORDS[args.word]
 
     if args.test:
-        pass
-    elif args.train:
-        pass
+        print("generating test")
     else:
-        print("Please use test (-ts=1) or train (-tr=1)")
-        exit(-1)
+        print("generating train")
 
-    print(word)
-    word_data = extract_data_for_word(word, args.test)
-    if args.train == 0:
-        np.savetxt(f'./train/test_word.csv', word_data, delimiter=",")
+    word_info = extract_data_for_word(word_data, args.test)
+    if not args.test:
+        np.savetxt(f'train/test_word.csv', word_info, delimiter=",")
 
 
 if __name__ == '__main__':
