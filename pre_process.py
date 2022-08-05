@@ -80,17 +80,22 @@ def find_cut3(signal_r):
 
     return i - 500
 
-# גזר
+# גזר, קופסה
 def find_cut5(signal_r):
     envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
-    idx_max = np.argmax(envelope)
     gradient = np.gradient(envelope)
-    eps=0.01
-    for i in range(idx_max + 100, len(envelope)):
-        if gradient[i] > (-eps):
+    max_val = np.max(envelope)
+    eps=0.0001
+    idx = len(envelope) - 1
+    for i in range(len(envelope)-100, -1, -1):
+        if (gradient[i] > (-eps)) and (envelope[i] > 0.35 * max_val):
+            break
+    idx = i    
+    for i in range(idx-100, -1, -1):
+        if (gradient[i] < eps) and (envelope[i] < 0.35 * max_val):
             break
 
-    return i-1500
+    return i
 
 
 def generate_features(wav_file, word_data):
@@ -116,6 +121,7 @@ def get_files_for_word(word_data, test):
         home_dir = "C:/Users/omer_/Desktop/recording_2/rec1"
     else:
         home_dir = "C:/Users/omer_/Desktop/recording_2/rec2"
+        home_dir = "C:/Users/omer_/Desktop/recording"
 
     result = [os.path.join(dp, f) for dp, dn, filenames in os.walk(home_dir) for f in filenames if os.path.splitext(f)[1] == '.wav']
     files = [item.replace('\\','/') for item in result if word_data.word in item]
@@ -174,10 +180,10 @@ WORDS = []
   
 # appending instances to WORDS 
 WORDS.append( word_data_t("ספה",   True,   find_cut0) )
-WORDS.append( word_data_t("פנס",   True,   find_cut1) )
-WORDS.append( word_data_t("קופסה", True,   find_cut2) )
+WORDS.append( word_data_t("פנס",   False,  find_cut5) )
+WORDS.append( word_data_t("קופסה", False,  find_cut5) )
 WORDS.append( word_data_t("זחל",   True,   find_cut3) )
-WORDS.append( word_data_t("רמז",   True,   find_cut4) )
+WORDS.append( word_data_t("רמז",   False,  find_cut4) )
 WORDS.append( word_data_t("גזר",   False,  find_cut5) )
 
 def main():

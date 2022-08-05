@@ -35,10 +35,15 @@ def normalize_samples(samples):
     return samples
 
 
-def generate_features(wav_file):
+def generate_features(word_data, wav_file):
     (frame_rate, samples) = read(wav_file)
     samples_n = normalize_samples(samples)
-    mfcc_feat = mfcc(signal=samples_n, samplerate=frame_rate,
+    signal_r = remove_noise(samples_n)
+
+    cut = word_data.cut_func(signal_r)
+    signal_r = signal_r[:cut] if (word_data.before) else signal_r[cut:]
+
+    mfcc_feat = mfcc(signal=signal_r, samplerate=frame_rate,
                      winlen=0.020, winstep=0.010, numcep=24, nfilt=40, nfft=1024, lowfreq=113, highfreq=6854)
     return mfcc_feat
 
@@ -55,7 +60,7 @@ def find_cut4():
 def find_cut0(signal_r):
     envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
     gradient = np.gradient(envelope)
-    max_val=np.max(envelope)
+    max_val = np.max(envelope)
     eps=0.0001
     idx = len(envelope) - 1
     for i in range(len(envelope)-100, -1, -1):
@@ -92,14 +97,19 @@ def find_cut3(signal_r):
 # גזר
 def find_cut5(signal_r):
     envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
-    idx_max = np.argmax(envelope)
     gradient = np.gradient(envelope)
-    eps=0.01
-    for i in range(idx_max + 100, len(envelope)):
-        if gradient[i] > (-eps):
+    max_val = np.max(envelope)
+    eps=0.0001
+    idx = len(envelope) - 1
+    for i in range(len(envelope)-100, -1, -1):
+        if (gradient[i] > (-eps)) and (envelope[i] > 0.35 * max_val):
+            break
+    idx = i    
+    for i in range(idx-100, -1, -1):
+        if (gradient[i] < eps) and (envelope[i] < 0.35 * max_val):
             break
 
-    return i-1500
+    return i
 
 def plot_wav(file, counter, word_data, normalize):
     spf = wave.open(file, "r")
@@ -119,21 +129,26 @@ def plot_wav(file, counter, word_data, normalize):
 
     plt.figure(1)
     plt.subplot(221)
-    plt.title("Signal Wave")
+    plt.title("Signal Wave", fontsize=30)
     plt.plot(signal)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
 
     plt.subplot(223)
     plt.title("Signal STFT")
     plt.specgram(signal, Fs=44100)
 
     plt.subplot(222)
-    plt.title("Signal remove noise")
+    plt.title("Identify Sibilant Syllable", fontsize=30)
     plt.plot(signal_r, '-')
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
     envelope = gaussian_filter1d(np.abs(hilbert(signal_r)), 500)
     plt.plot(envelope, 'k')
     
     cut = word_data.cut_func(signal_r)
     plt.axvline(x=cut, color='r')
+    plt.axvline(x=len(signal_r) - 1, color='r')
 
     plt.subplot(224)
     plt.title("Signal with noise removal FFT")
@@ -148,8 +163,8 @@ def plot_wav(file, counter, word_data, normalize):
         write(f"tst/e_{counter}.wav", SAMPLERATE, signal_r[cut:].astype(np.int16))
 
 
-def plot_mfcc(file):
-    mfcc_data = generate_features(file)
+def plot_mfcc(word_data, file):
+    mfcc_data = generate_features(word_data, file)
 
     fig, ax = plt.subplots()
     mfcc_data= np.swapaxes(mfcc_data, 0, 1)
@@ -176,10 +191,10 @@ WORDS = []
   
 # appending instances to WORDS 
 WORDS.append( word_data("ספה",   True,   find_cut0) )
-WORDS.append( word_data("פנס",   True,   find_cut1) )
-WORDS.append( word_data("קופסה", True,   find_cut2) )
+WORDS.append( word_data("פנס",   False,  find_cut5) )
+WORDS.append( word_data("קופסה", False,  find_cut5) )
 WORDS.append( word_data("זחל",   True,   find_cut3) )
-WORDS.append( word_data("רמז",   True,   find_cut4) )
+WORDS.append( word_data("רמז",   False,  find_cut4) )
 WORDS.append( word_data("גזר",   False,  find_cut5) )
 
 SAMPLERATE = 44100
@@ -219,7 +234,7 @@ def main():
             if args.signal:
                 plot_wav(file, counter, word_data, args.normalize)
             if args.mfcc:
-                plot_mfcc(file)
+                plot_mfcc(word_data, file)
             counter += 1
 
     elif args.file:
@@ -228,7 +243,7 @@ def main():
         if args.signal:
             plot_wav(file, counter, word_data, args.normalize)
         if args.mfcc:
-            plot_mfcc(file)
+            plot_mfcc(word_data, file)
     else:
         print("Please use dir (-d=*) or file (-f=*)")
         exit(-1)
